@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
+	"swift-api/pkg/models"
 	"swift-api/pkg/repository"
 )
 
@@ -38,11 +39,21 @@ type BranchInHQResponse struct {
 	IsHeadquarter bool   `json:"isHeadquarter"`
 	SwiftCode     string `json:"swiftCode"`
 }
+type SwiftCodeInCountryResponse = BranchInHQResponse
 
 type CountryResponse struct {
 	CountryISO2 string               `json:"countryISO2"`
 	CountryName string               `json:"countryName"`
 	SwiftCodes  []BranchInHQResponse `json:"swiftCodes"`
+}
+
+type CreateSwiftCodeRequest struct {
+	Address       string `json:"address"`
+	BankName      string `json:"bankName"`
+	CountryISO2   string `json:"countryISO2"`
+	CountryName   string `json:"countryName"`
+	IsHeadquarter bool   `json:"isHeadquarter"`
+	SwiftCode     string `json:"swiftCode"`
 }
 
 func NewHandler(repo repository.Repository) *Handler {
@@ -126,9 +137,9 @@ func (h *Handler) GetSwiftCodesByCountry(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var respCodes []BranchInHQResponse
+	var respCodes []SwiftCodeInCountryResponse
 	for _, code := range codes {
-		respCodes = append(respCodes, BranchInHQResponse{
+		respCodes = append(respCodes, SwiftCodeInCountryResponse{
 			Address:       *code.Address,
 			BankName:      code.BankName,
 			CountryISO2:   code.CountryISO2,
@@ -152,7 +163,73 @@ func (h *Handler) GetSwiftCodesByCountry(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
+	var req CreateSwiftCodeRequest
 
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	req.CountryISO2 = strings.ToUpper(req.CountryISO2)
+	req.CountryName = strings.ToUpper(req.CountryName)
+
+	if err := req.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	newCode := models.SwiftCode{
+		Address:       &req.Address,
+		BankName:      req.BankName,
+		CountryISO2:   req.CountryISO2,
+		CountryName:   req.CountryName,
+		IsHeadquarter: req.IsHeadquarter,
+		SwiftCode:     req.SwiftCode,
+	}
+
+	if !req.IsHeadquarter {
+		hqCode := req.SwiftCode[:8] + "XXX"
+		exists, err := h.repo.HeadquarterExists(hqCode)
+		if err != nil {
+			http.Error(w, "DB error", http.StatusInternalServerError)
+			return
+		}
+		if !exists {
+			placeholder := models.SwiftCode{
+				SwiftCode:            hqCode,
+				BankName:             "UNKNOWN",
+				TownName:             "UNKNOWN",
+				CountryISO2:          req.CountryISO2,
+				CountryName:          req.CountryName,
+				Timezone:             "Etc/UTC",
+				IsHeadquarter:        true,
+				Address:              nil,
+				HeadquarterSWIFTCode: nil,
+			}
+			err = h.repo.InsertSwiftCodes([]models.SwiftCode{placeholder})
+			if err != nil {
+				http.Error(w, "Failed to insert placeholder HQ", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		hqCodePtr := hqCode
+		newCode.HeadquarterSWIFTCode = &hqCodePtr
+	}
+
+	if err := h.repo.InsertSwiftCodes([]models.SwiftCode{newCode}); err != nil {
+		http.Error(w, "Failed to insert SWIFT code", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "SWIFT code added successfully",
+	})
+	if err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) DeleteSwiftCode(w http.ResponseWriter, r *http.Request) {

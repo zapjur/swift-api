@@ -12,6 +12,7 @@ type Repository interface {
 	GetSwiftCodeDetails(swiftCode string) (*models.SwiftCode, error)
 	GetBranchesByHeadquarter(headquarterSWIFTCode string) ([]models.SwiftCode, error)
 	GetSwiftCodesByCountry(iso2 string) ([]models.SwiftCode, string, error)
+	HeadquarterExists(swiftCode string) (bool, error)
 }
 
 type Repo struct {
@@ -137,4 +138,21 @@ func (r *Repo) GetSwiftCodesByCountry(iso2 string) ([]models.SwiftCode, string, 
 	}
 
 	return codes, countryName, nil
+}
+
+func (r *Repo) HeadquarterExists(swiftCode string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM swift_codes 
+			WHERE swift_code = $1 AND is_headquarter = TRUE
+		)
+	`, swiftCode).Scan(&exists)
+
+	if err != nil {
+		log.Println("Error checking headquarter existence:", err)
+		return false, err
+	}
+
+	return exists, nil
 }
