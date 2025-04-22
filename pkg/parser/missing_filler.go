@@ -2,15 +2,16 @@ package parser
 
 import (
 	"log"
+	"swift-api/pkg/models"
 )
 
-func FillMissingHeadquarters(hq []SwiftCode, branches []SwiftCode) []SwiftCode {
+func FillMissingHeadquarters(hq, branches []models.SwiftCode) []models.SwiftCode {
 	hqMap := make(map[string]struct{})
 	for _, h := range hq {
 		hqMap[h.SwiftCode] = struct{}{}
 	}
 
-	var placeholderHQs []SwiftCode
+	var placeholderHQs []models.SwiftCode
 
 	for _, b := range branches {
 		if b.HeadquarterSWIFTCode == nil {
@@ -19,7 +20,7 @@ func FillMissingHeadquarters(hq []SwiftCode, branches []SwiftCode) []SwiftCode {
 		hqCode := *b.HeadquarterSWIFTCode
 		if _, exists := hqMap[hqCode]; !exists {
 			log.Printf("Adding placeholder HQ: %s", hqCode)
-			placeholderHQs = append(placeholderHQs, SwiftCode{
+			placeholderHQs = append(placeholderHQs, models.SwiftCode{
 				CountryISO2:          "ZZ",
 				SwiftCode:            hqCode,
 				BankName:             "UNKNOWN",

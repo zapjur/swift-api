@@ -5,21 +5,10 @@ import (
 	"log"
 	"os"
 	"strings"
+	"swift-api/pkg/models"
 )
 
-type SwiftCode struct {
-	CountryISO2          string
-	SwiftCode            string
-	BankName             string
-	Address              *string
-	TownName             string
-	CountryName          string
-	Timezone             string
-	IsHeadquarter        bool
-	HeadquarterSWIFTCode *string
-}
-
-func ParseCSV(filePath string) ([]SwiftCode, []SwiftCode, error) {
+func ParseCSV(filePath string) ([]models.SwiftCode, []models.SwiftCode, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Println("Error opening file:", err)
@@ -34,8 +23,8 @@ func ParseCSV(filePath string) ([]SwiftCode, []SwiftCode, error) {
 		return nil, nil, err
 	}
 
-	var headquarters []SwiftCode
-	var branches []SwiftCode
+	var headquarters []models.SwiftCode
+	var branches []models.SwiftCode
 
 	for {
 		record, err := reader.Read()
@@ -57,7 +46,7 @@ func ParseCSV(filePath string) ([]SwiftCode, []SwiftCode, error) {
 			addressPtr = &address
 		}
 
-		code := SwiftCode{
+		code := models.SwiftCode{
 			CountryISO2:          strings.ToUpper(record[0]),
 			SwiftCode:            swiftCode,
 			BankName:             record[3],

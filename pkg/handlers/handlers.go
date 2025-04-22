@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"net/http"
 	"swift-api/pkg/repository"
 )
@@ -15,25 +16,44 @@ func NewHandler(repo repository.Repository) *Handler {
 }
 
 func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
-	swiftCode := r.PathValue("swiftCode")
+	vars := mux.Vars(r)
+	swiftCode := vars["swift-code"]
 
-	json.NewEncoder(w).Encode(map[string]string{"swiftCode": swiftCode})
+	code, err := h.repo.GetSwiftCodeDetails(swiftCode)
+	if err != nil {
+		http.Error(w, "Error retrieving SWIFT code", http.StatusInternalServerError)
+		return
+	}
+	if code == nil {
+		http.Error(w, "SWIFT code not found", http.StatusNotFound)
+		return
+	}
+
+	if code.IsHeadquarter {
+		branches, err := h.repo.GetBranchesByHeadquarter(swiftCode)
+		if err != nil {
+			http.Error(w, "Error retrieving branches", http.StatusInternalServerError)
+			return
+		}
+		code.Branches = branches
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(code); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) GetSwiftCodesByCountry(w http.ResponseWriter, r *http.Request) {
-	countryISO2 := r.PathValue("countryISO2")
 
-	json.NewEncoder(w).Encode(map[string]string{"countryISO2": countryISO2})
 }
 
 func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Swift code created"})
 }
 
 func (h *Handler) DeleteSwiftCode(w http.ResponseWriter, r *http.Request) {
-	swiftCode := r.PathValue("swiftCode")
 
-	json.NewEncoder(w).Encode(map[string]string{"message": "Swift code " + swiftCode + " deleted"})
 }

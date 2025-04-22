@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"os"
@@ -39,11 +40,13 @@ func main() {
 
 	handler := handlers.NewHandler(repo)
 
-	http.HandleFunc("GET /v1/swift-codes/{swiftCode}", handler.GetSwiftCode)
-	http.HandleFunc("GET /v1/swift-codes/country/{countryISO2}", handler.GetSwiftCodesByCountry)
-	http.HandleFunc("POST /v1/swift-codes", handler.CreateSwiftCode)
-	http.HandleFunc("DELETE /v1/swift-codes/{swiftCode}", handler.DeleteSwiftCode)
+	r := mux.NewRouter()
+
+	r.HandleFunc("/v1/swift-codes/{swift-code}", handler.GetSwiftCode).Methods("GET")
+	r.HandleFunc("/v1/swift-codes/country/{countryISO2}", handler.GetSwiftCodesByCountry).Methods("GET")
+	r.HandleFunc("/v1/swift-codes", handler.CreateSwiftCode).Methods("POST")
+	r.HandleFunc("/v1/swift-codes/{swift-code}", handler.DeleteSwiftCode).Methods("DELETE")
 
 	log.Println("Server running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
