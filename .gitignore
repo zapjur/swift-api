@@ -1,0 +1,48 @@
+# Go build artifacts
+/bin/
+/obj/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output binaries
+swift-api
+swiftapi
+
+# IDE (JetBrains GoLand)
+.idea/
+*.iml
+*.ipr
+*.iws
+*.bak
+*.tmp
+*.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs and temporary files
+*.log
+*.tmp
+*~
+
+# Environment variables and secrets
+.env
+*.env
+
+# Docker
+*.dockerignore
+
+# Vendor (if you're not vendoring dependencies)
+vendor/
+
+# Coverage reports
+*.out
+coverage/
+
+# Generated files
+generated/
