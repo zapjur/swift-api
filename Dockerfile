@@ -10,6 +10,7 @@ FROM alpine:latest
 
 WORKDIR /app
 COPY --from=build /app/swift-api /app/swift-api
+COPY --from=build /app/assets /app/assets
 
 EXPOSE 8080
 CMD ["/app/swift-api"]
