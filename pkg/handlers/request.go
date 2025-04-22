@@ -39,3 +39,10 @@ func (r *CreateSwiftCodeRequest) Validate() error {
 
 	return nil
 }
+
+func strOrEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}

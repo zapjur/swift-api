@@ -13,6 +13,9 @@ type Repository interface {
 	GetBranchesByHeadquarter(headquarterSWIFTCode string) ([]models.SwiftCode, error)
 	GetSwiftCodesByCountry(iso2 string) ([]models.SwiftCode, string, error)
 	HeadquarterExists(swiftCode string) (bool, error)
+	SwiftCodeExists(swiftCode string) (bool, error)
+	IsPlaceholder(swiftCode string) (bool, error)
+	UpdatePlaceholderSwiftCode(code models.SwiftCode) error
 }
 
 type Repo struct {
@@ -155,4 +158,53 @@ func (r *Repo) HeadquarterExists(swiftCode string) (bool, error) {
 	}
 
 	return exists, nil
+}
+
+func (r *Repo) SwiftCodeExists(swiftCode string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(`
+		SELECT EXISTS(SELECT 1 FROM swift_codes WHERE swift_code = $1)
+	`, swiftCode).Scan(&exists)
+
+	if err != nil {
+		log.Println("Error checking SWIFT code existence:", err)
+		return false, err
+	}
+
+	return exists, nil
+}
+
+func (r *Repo) IsPlaceholder(swiftCode string) (bool, error) {
+	var bankName, timezone string
+	err := r.db.QueryRow(`
+		SELECT bank_name, timezone FROM swift_codes WHERE swift_code = $1
+	`, swiftCode).Scan(&bankName, &timezone)
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return bankName == "UNKNOWN" && timezone == "Etc/UTC", nil
+}
+
+func (r *Repo) UpdatePlaceholderSwiftCode(code models.SwiftCode) error {
+	_, err := r.db.Exec(`
+		UPDATE swift_codes SET
+			bank_name = $1,
+			address = $2,
+			town_name = $3,
+			country_iso2 = $4,
+			country_name = $5,
+			timezone = $6,
+			is_headquarter = $7,
+			headquarter_swift_code = $8
+		WHERE swift_code = $9
+		AND bank_name = 'UNKNOWN' AND timezone = 'Etc/UTC'
+	`, code.BankName, code.Address, code.TownName, code.CountryISO2,
+		code.CountryName, code.Timezone, code.IsHeadquarter, code.HeadquarterSWIFTCode, code.SwiftCode)
+
+	return err
 }

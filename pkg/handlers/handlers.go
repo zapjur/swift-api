@@ -85,7 +85,7 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 		var branchResponses []BranchInHQResponse
 		for _, b := range branches {
 			branchResponses = append(branchResponses, BranchInHQResponse{
-				Address:       *b.Address,
+				Address:       strOrEmpty(b.Address),
 				BankName:      b.BankName,
 				CountryISO2:   b.CountryISO2,
 				IsHeadquarter: b.IsHeadquarter,
@@ -94,7 +94,7 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 		}
 
 		resp := HeadquarterResponse{
-			Address:       *code.Address,
+			Address:       strOrEmpty(code.Address),
 			BankName:      code.BankName,
 			CountryISO2:   code.CountryISO2,
 			CountryName:   code.CountryName,
@@ -110,7 +110,7 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := BranchResponse{
-		Address:       *code.Address,
+		Address:       strOrEmpty(code.Address),
 		BankName:      code.BankName,
 		CountryISO2:   code.CountryISO2,
 		CountryName:   code.CountryName,
@@ -140,7 +140,7 @@ func (h *Handler) GetSwiftCodesByCountry(w http.ResponseWriter, r *http.Request)
 	var respCodes []SwiftCodeInCountryResponse
 	for _, code := range codes {
 		respCodes = append(respCodes, SwiftCodeInCountryResponse{
-			Address:       *code.Address,
+			Address:       strOrEmpty(code.Address),
 			BankName:      code.BankName,
 			CountryISO2:   code.CountryISO2,
 			IsHeadquarter: code.IsHeadquarter,
@@ -217,13 +217,37 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 		newCode.HeadquarterSWIFTCode = &hqCodePtr
 	}
 
-	if err := h.repo.InsertSwiftCodes([]models.SwiftCode{newCode}); err != nil {
-		http.Error(w, "Failed to insert SWIFT code", http.StatusInternalServerError)
+	exists, err := h.repo.SwiftCodeExists(newCode.SwiftCode)
+	if err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
 
+	if exists {
+		isPlaceholder, err := h.repo.IsPlaceholder(newCode.SwiftCode)
+		if err != nil {
+			http.Error(w, "DB error", http.StatusInternalServerError)
+			return
+		}
+		if isPlaceholder {
+			err = h.repo.UpdatePlaceholderSwiftCode(newCode)
+			if err != nil {
+				http.Error(w, "Failed to update placeholder SWIFT code", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			http.Error(w, "SWIFT code already exists", http.StatusConflict)
+			return
+		}
+	} else {
+		if err := h.repo.InsertSwiftCodes([]models.SwiftCode{newCode}); err != nil {
+			http.Error(w, "Failed to insert SWIFT code", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(map[string]string{
+	err = json.NewEncoder(w).Encode(map[string]string{
 		"message": "SWIFT code added successfully",
 	})
 	if err != nil {
