@@ -16,6 +16,7 @@ type Repository interface {
 	SwiftCodeExists(swiftCode string) (bool, error)
 	IsPlaceholder(swiftCode string) (bool, error)
 	UpdatePlaceholderSwiftCode(code models.SwiftCode) error
+	DeleteSwiftCode(swiftCode string) error
 }
 
 type Repo struct {
@@ -206,5 +207,10 @@ func (r *Repo) UpdatePlaceholderSwiftCode(code models.SwiftCode) error {
 	`, code.BankName, code.Address, code.TownName, code.CountryISO2,
 		code.CountryName, code.Timezone, code.IsHeadquarter, code.HeadquarterSWIFTCode, code.SwiftCode)
 
+	return err
+}
+
+func (r *Repo) DeleteSwiftCode(swiftCode string) error {
+	_, err := r.db.Exec(`DELETE FROM swift_codes WHERE swift_code = $1`, swiftCode)
 	return err
 }

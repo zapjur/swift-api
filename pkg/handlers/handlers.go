@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
@@ -257,5 +259,41 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteSwiftCode(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	swiftCode := vars["swift-code"]
 
+	if swiftCode == "" {
+		http.Error(w, "SWIFT code is required", http.StatusBadRequest)
+		return
+	}
+
+	if len(swiftCode) != 11 {
+		http.Error(w, "SWIFT code must be exactly 11 characters", http.StatusBadRequest)
+		return
+	}
+
+	branches, err := h.repo.GetBranchesByHeadquarter(swiftCode)
+	if err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+	if len(branches) > 0 {
+		http.Error(w, "Cannot delete headquarter with existing branches", http.StatusConflict)
+		return
+	}
+
+	err = h.repo.DeleteSwiftCode(swiftCode)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "SWIFT code not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Error deleting SWIFT code", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(map[string]string{
+		"message": "SWIFT code deleted successfully",
+	})
 }
