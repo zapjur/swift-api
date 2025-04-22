@@ -43,7 +43,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/v1/swift-codes/{swift-code}", handler.GetSwiftCode).Methods("GET")
-	r.HandleFunc("/v1/swift-codes/country/{countryISO2}", handler.GetSwiftCodesByCountry).Methods("GET")
+	r.HandleFunc("/v1/swift-codes/country/{countryISO2code}", handler.GetSwiftCodesByCountry).Methods("GET")
 	r.HandleFunc("/v1/swift-codes", handler.CreateSwiftCode).Methods("POST")
 	r.HandleFunc("/v1/swift-codes/{swift-code}", handler.DeleteSwiftCode).Methods("DELETE")
 

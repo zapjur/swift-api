@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"net/http"
+	"strings"
 	"swift-api/pkg/repository"
 )
 
@@ -36,6 +37,12 @@ type BranchInHQResponse struct {
 	CountryISO2   string `json:"countryISO2"`
 	IsHeadquarter bool   `json:"isHeadquarter"`
 	SwiftCode     string `json:"swiftCode"`
+}
+
+type CountryResponse struct {
+	CountryISO2 string               `json:"countryISO2"`
+	CountryName string               `json:"countryName"`
+	SwiftCodes  []BranchInHQResponse `json:"swiftCodes"`
 }
 
 func NewHandler(repo repository.Repository) *Handler {
@@ -106,7 +113,42 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetSwiftCodesByCountry(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	iso2 := vars["countryISO2code"]
 
+	codes, countryName, err := h.repo.GetSwiftCodesByCountry(iso2)
+	if err != nil {
+		http.Error(w, "Error retrieving SWIFT codes", http.StatusInternalServerError)
+		return
+	}
+	if len(codes) == 0 {
+		http.Error(w, "No SWIFT codes found for this country", http.StatusNotFound)
+		return
+	}
+
+	var respCodes []BranchInHQResponse
+	for _, code := range codes {
+		respCodes = append(respCodes, BranchInHQResponse{
+			Address:       *code.Address,
+			BankName:      code.BankName,
+			CountryISO2:   code.CountryISO2,
+			IsHeadquarter: code.IsHeadquarter,
+			SwiftCode:     code.SwiftCode,
+		})
+
+	}
+
+	resp := CountryResponse{
+		CountryISO2: strings.ToUpper(iso2),
+		CountryName: countryName,
+		SwiftCodes:  respCodes,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {

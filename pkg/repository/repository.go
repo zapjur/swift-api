@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"log"
+	"strings"
 	"swift-api/pkg/models"
 )
 
@@ -10,6 +11,7 @@ type Repository interface {
 	InsertSwiftCodes(swiftCodes []models.SwiftCode) error
 	GetSwiftCodeDetails(swiftCode string) (*models.SwiftCode, error)
 	GetBranchesByHeadquarter(headquarterSWIFTCode string) ([]models.SwiftCode, error)
+	GetSwiftCodesByCountry(iso2 string) ([]models.SwiftCode, string, error)
 }
 
 type Repo struct {
@@ -110,4 +112,29 @@ func (r *Repo) GetBranchesByHeadquarter(headquarterSWIFTCode string) ([]models.S
 	}
 
 	return branches, nil
+}
+
+func (r *Repo) GetSwiftCodesByCountry(iso2 string) ([]models.SwiftCode, string, error) {
+	rows, err := r.db.Query(`
+		SELECT swift_code, bank_name, address, town_name, country_iso2, country_name, timezone, is_headquarter, headquarter_swift_code
+		FROM swift_codes WHERE country_iso2 = $1`, strings.ToUpper(iso2))
+	if err != nil {
+		return nil, "", err
+	}
+	defer rows.Close()
+
+	var codes []models.SwiftCode
+	var countryName string
+
+	for rows.Next() {
+		var c models.SwiftCode
+		err = rows.Scan(&c.SwiftCode, &c.BankName, &c.Address, &c.TownName, &c.CountryISO2, &c.CountryName, &c.Timezone, &c.IsHeadquarter, &c.HeadquarterSWIFTCode)
+		if err != nil {
+			return nil, "", err
+		}
+		codes = append(codes, c)
+		countryName = c.CountryName
+	}
+
+	return codes, countryName, nil
 }
