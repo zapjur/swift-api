@@ -26,6 +26,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	hq = parser.FillMissingHeadquarters(hq, branches)
 
 	repo := repository.NewRepository(db)
 	if err = repo.InsertSwiftCodes(hq); err != nil {
