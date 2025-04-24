@@ -12,7 +12,7 @@ import (
 )
 
 type Handler struct {
-	repo repository.Repository
+	Repo repository.Repository
 }
 
 type BranchResponse struct {
@@ -59,14 +59,24 @@ type CreateSwiftCodeRequest struct {
 }
 
 func NewHandler(repo repository.Repository) *Handler {
-	return &Handler{repo: repo}
+	return &Handler{Repo: repo}
 }
 
 func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	swiftCode := vars["swift-code"]
 
-	code, err := h.repo.GetSwiftCodeDetails(swiftCode)
+	if swiftCode == "" {
+		http.Error(w, "SWIFT code is required", http.StatusBadRequest)
+		return
+	}
+
+	if len(swiftCode) != 11 {
+		http.Error(w, "SWIFT code must be exactly 11 characters", http.StatusBadRequest)
+		return
+	}
+
+	code, err := h.Repo.GetSwiftCodeDetails(swiftCode)
 	if err != nil {
 		http.Error(w, "Error retrieving SWIFT code", http.StatusInternalServerError)
 		return
@@ -79,7 +89,7 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if code.IsHeadquarter {
-		branches, err := h.repo.GetBranchesByHeadquarter(swiftCode)
+		branches, err := h.Repo.GetBranchesByHeadquarter(swiftCode)
 		if err != nil {
 			http.Error(w, "Error retrieving branches", http.StatusInternalServerError)
 			return
@@ -129,7 +139,17 @@ func (h *Handler) GetSwiftCodesByCountry(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 	iso2 := vars["countryISO2code"]
 
-	codes, countryName, err := h.repo.GetSwiftCodesByCountry(iso2)
+	if iso2 == "" {
+		http.Error(w, "Country ISO2 code is required", http.StatusBadRequest)
+		return
+	}
+
+	if len(iso2) != 2 {
+		http.Error(w, "Country ISO2 code must be exactly 2 characters", http.StatusBadRequest)
+		return
+	}
+
+	codes, countryName, err := h.Repo.GetSwiftCodesByCountry(iso2)
 	if err != nil {
 		http.Error(w, "Error retrieving SWIFT codes", http.StatusInternalServerError)
 		return
@@ -191,7 +211,7 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 
 	if !req.IsHeadquarter {
 		hqCode := req.SwiftCode[:8] + "XXX"
-		exists, err := h.repo.HeadquarterExists(hqCode)
+		exists, err := h.Repo.HeadquarterExists(hqCode)
 		if err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
@@ -208,7 +228,7 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 				Address:              nil,
 				HeadquarterSWIFTCode: nil,
 			}
-			err = h.repo.InsertSwiftCodes([]models.SwiftCode{placeholder})
+			err = h.Repo.InsertSwiftCodes([]models.SwiftCode{placeholder})
 			if err != nil {
 				http.Error(w, "Failed to insert placeholder HQ", http.StatusInternalServerError)
 				return
@@ -219,20 +239,20 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 		newCode.HeadquarterSWIFTCode = &hqCodePtr
 	}
 
-	exists, err := h.repo.SwiftCodeExists(newCode.SwiftCode)
+	exists, err := h.Repo.SwiftCodeExists(newCode.SwiftCode)
 	if err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
 
 	if exists {
-		isPlaceholder, err := h.repo.IsPlaceholder(newCode.SwiftCode)
+		isPlaceholder, err := h.Repo.IsPlaceholder(newCode.SwiftCode)
 		if err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
 		}
 		if isPlaceholder {
-			err = h.repo.UpdatePlaceholderSwiftCode(newCode)
+			err = h.Repo.UpdatePlaceholderSwiftCode(newCode)
 			if err != nil {
 				http.Error(w, "Failed to update placeholder SWIFT code", http.StatusInternalServerError)
 				return
@@ -242,7 +262,7 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		if err := h.repo.InsertSwiftCodes([]models.SwiftCode{newCode}); err != nil {
+		if err := h.Repo.InsertSwiftCodes([]models.SwiftCode{newCode}); err != nil {
 			http.Error(w, "Failed to insert SWIFT code", http.StatusInternalServerError)
 			return
 		}
@@ -273,7 +293,7 @@ func (h *Handler) DeleteSwiftCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasSuffix(swiftCode, "XXX") {
-		branches, err := h.repo.GetBranchesByHeadquarter(swiftCode)
+		branches, err := h.Repo.GetBranchesByHeadquarter(swiftCode)
 		if err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
@@ -284,7 +304,7 @@ func (h *Handler) DeleteSwiftCode(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err := h.repo.DeleteSwiftCode(swiftCode)
+	err := h.Repo.DeleteSwiftCode(swiftCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "SWIFT code not found", http.StatusNotFound)
