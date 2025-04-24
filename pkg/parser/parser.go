@@ -32,6 +32,11 @@ func ParseCSV(filePath string) ([]models.SwiftCode, []models.SwiftCode, error) {
 			break
 		}
 
+		if len(record) < 8 {
+			log.Println("Skipping invalid record:", record)
+			continue
+		}
+
 		swiftCode := record[1]
 		isHeadquarter := strings.HasSuffix(swiftCode, "XXX")
 		var headquarterSWIFTCode *string
@@ -52,7 +57,7 @@ func ParseCSV(filePath string) ([]models.SwiftCode, []models.SwiftCode, error) {
 			BankName:             record[3],
 			Address:              addressPtr,
 			TownName:             record[5],
-			CountryName:          record[6],
+			CountryName:          strings.ToUpper(record[6]),
 			Timezone:             record[7],
 			IsHeadquarter:        isHeadquarter,
 			HeadquarterSWIFTCode: headquarterSWIFTCode,

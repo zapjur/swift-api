@@ -20,7 +20,7 @@ func main() {
 
 	filePath := os.Getenv("SWIFT_CODES_FILE_PATH")
 	if filePath == "" {
-		filePath = "./assets/swift_codes.csv"
+		log.Fatal("SWIFT_CODES_FILE_PATH environment variable is required")
 	}
 
 	hq, branches, err := parser.ParseCSV(filePath)

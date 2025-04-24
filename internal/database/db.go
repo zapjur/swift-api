@@ -13,7 +13,7 @@ import (
 func ConnectDB() (*sql.DB, error) {
 	connStr := os.Getenv("DB_URL")
 	if connStr == "" {
-		connStr = "postgres://user:pass@localhost:5432/swift?sslmode=disable"
+		return nil, fmt.Errorf("DB_URL environment variable is required")
 	}
 
 	var db *sql.DB

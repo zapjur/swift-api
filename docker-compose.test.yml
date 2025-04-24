@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  test-db:
+    image: postgres:17
+    container_name: swift-test-db
+    environment:
+      POSTGRES_DB: swift_test
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    ports:
+      - "5555:5432"
+    volumes:
+      - ./scripts/init_schema.sql:/docker-entrypoint-initdb.d/init_schema.sql
+    networks:
+      - test-network
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      - test-db
+    environment:
+      DB_URL: postgres://user:pass@test-db:5432/swift_test?sslmode=disable
+    networks:
+      - test-network
+
+networks:
+  test-network:

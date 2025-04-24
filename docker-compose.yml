@@ -27,6 +27,7 @@ services:
       - db
     environment:
       DB_URL: postgres://user:pass@db:5432/swift?sslmode=disable
+      SWIFT_CODES_FILE_PATH: /app/assets/swift_codes.csv
     networks:
       - swift-network
 
