@@ -272,17 +272,19 @@ func (h *Handler) DeleteSwiftCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	branches, err := h.repo.GetBranchesByHeadquarter(swiftCode)
-	if err != nil {
-		http.Error(w, "DB error", http.StatusInternalServerError)
-		return
-	}
-	if len(branches) > 0 {
-		http.Error(w, "Cannot delete headquarter with existing branches", http.StatusConflict)
-		return
+	if strings.HasSuffix(swiftCode, "XXX") {
+		branches, err := h.repo.GetBranchesByHeadquarter(swiftCode)
+		if err != nil {
+			http.Error(w, "DB error", http.StatusInternalServerError)
+			return
+		}
+		if len(branches) > 0 {
+			http.Error(w, "Cannot delete headquarter with existing branches", http.StatusConflict)
+			return
+		}
 	}
 
-	err = h.repo.DeleteSwiftCode(swiftCode)
+	err := h.repo.DeleteSwiftCode(swiftCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "SWIFT code not found", http.StatusNotFound)
