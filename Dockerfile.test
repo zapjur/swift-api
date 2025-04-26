@@ -6,4 +6,4 @@ COPY . .
 RUN go mod tidy
 RUN go build -o swift-api ./cmd
 
-CMD ["go", "test", "./...", "-v", "-p", "1"]
+CMD ["sh", "-c", "go test ./... -v -p 1 -coverprofile=coverage.out | tee test-report.txt && go tool cover -html=coverage.out -o coverage.html"]

@@ -68,6 +68,17 @@ func TestCreateSwiftCodes(t *testing.T) {
 		h.CreateSwiftCode(rec, req)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
+
+	t.Run("Create with invalid JSON", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/v1/swift-codes", strings.NewReader(`{invalid-json}`))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		h.CreateSwiftCode(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Invalid request payload")
+	})
 }
 
 func TestGetSwiftCode(t *testing.T) {
@@ -98,6 +109,17 @@ func TestGetSwiftCode(t *testing.T) {
 		h.GetSwiftCode(rec, req)
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 	})
+
+	t.Run("Get SWIFT code with invalid length", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/swift-codes/SHORT", nil)
+		req = mux.SetURLVars(req, map[string]string{"swift-code": "SHORT"})
+		rec := httptest.NewRecorder()
+
+		h.GetSwiftCode(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "SWIFT code must be exactly 11 characters")
+	})
 }
 
 func TestGetSwiftCodesByCountry(t *testing.T) {
@@ -113,6 +135,26 @@ func TestGetSwiftCodesByCountry(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), "TSTHQ000XXX")
 		assert.Contains(t, rec.Body.String(), "TSTHQ000001")
 	})
+
+	t.Run("Get country codes with invalid ISO2", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/swift-codes/country/PLS", nil)
+		req = mux.SetURLVars(req, map[string]string{"countryISO2code": "PLS"})
+		rec := httptest.NewRecorder()
+
+		h.GetSwiftCodesByCountry(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Country ISO2 code must be exactly 2 characters")
+	})
+
+	t.Run("Get country codes without swift code", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/swift-codes/country/DD", nil)
+		req = mux.SetURLVars(req, map[string]string{"countryISO2code": "DD"})
+		rec := httptest.NewRecorder()
+		h.GetSwiftCodesByCountry(rec, req)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+		assert.Contains(t, rec.Body.String(), "No SWIFT codes found for this country")
+	})
 }
 
 func TestDeleteSwiftCode(t *testing.T) {
@@ -125,10 +167,15 @@ func TestDeleteSwiftCode(t *testing.T) {
 		rec := httptest.NewRecorder()
 		h.DeleteSwiftCode(rec, req)
 		assert.Equal(t, http.StatusOK, rec.Code)
+
+		reqCheck := httptest.NewRequest(http.MethodGet, "/v1/swift-codes/TSTHQ000001", nil)
+		reqCheck = mux.SetURLVars(reqCheck, map[string]string{"swift-code": "TSTHQ000001"})
+		recCheck := httptest.NewRecorder()
+		h.GetSwiftCode(recCheck, reqCheck)
+		assert.Equal(t, http.StatusNotFound, recCheck.Code)
 	})
 
 	t.Run("Delete HQ with branch fails", func(t *testing.T) {
-		// Re-insert branch to ensure it exists
 		body := `{"swiftCode":"TSTHQ000001","bankName":"Branch Again","countryISO2":"PL","countryName":"Poland","address":"Branch Addr","isHeadquarter":false}`
 		req := httptest.NewRequest(http.MethodPost, "/v1/swift-codes", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -155,5 +202,31 @@ func TestDeleteSwiftCode(t *testing.T) {
 		recHQ := httptest.NewRecorder()
 		h.DeleteSwiftCode(recHQ, reqHQ)
 		assert.Equal(t, http.StatusOK, recHQ.Code)
+
+		reqCheck := httptest.NewRequest(http.MethodGet, "/v1/swift-codes/TSTHQ000XXX", nil)
+		reqCheck = mux.SetURLVars(reqCheck, map[string]string{"swift-code": "TSTHQ000XXX"})
+		recCheck := httptest.NewRecorder()
+		h.GetSwiftCode(recCheck, reqCheck)
+		assert.Equal(t, http.StatusNotFound, recCheck.Code)
 	})
+
+	t.Run("Delete non-existent SWIFT code", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/v1/swift-codes/NONEXISTX01", nil)
+		req = mux.SetURLVars(req, map[string]string{"swift-code": "NONEXISTX01"})
+		rec := httptest.NewRecorder()
+		h.DeleteSwiftCode(rec, req)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("Delete with empty swift code", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/v1/swift-codes/", nil)
+		req = mux.SetURLVars(req, map[string]string{"swift-code": ""})
+		rec := httptest.NewRecorder()
+
+		h.DeleteSwiftCode(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "SWIFT code is required")
+	})
+
 }

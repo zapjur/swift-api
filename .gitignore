@@ -42,6 +42,9 @@ vendor/
 # Coverage reports
 *.out
 coverage/
+# Test results
+coverage.html
+test-report.txt
 
 # Generated files
 generated/

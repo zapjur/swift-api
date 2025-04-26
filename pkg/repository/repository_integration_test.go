@@ -16,14 +16,15 @@ func setupTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to connect to test DB: %v", err)
 	}
+
+	db.Exec("DELETE FROM swift_codes")
+
 	return db
 }
 
 func TestInsertSwiftCodes(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
-
-	defer db.Exec("DELETE FROM swift_codes")
 
 	swiftCode := models.SwiftCode{
 		SwiftCode:     "TESTINSERT1",
@@ -140,8 +141,6 @@ func TestGetSwiftCodeDetails(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
 
-	defer db.Exec("DELETE FROM swift_codes")
-
 	hq := models.SwiftCode{
 		SwiftCode:     "DETATESTXXX",
 		BankName:      "Detail Test HQ",
@@ -176,8 +175,6 @@ func TestGetSwiftCodeDetails(t *testing.T) {
 func TestGetBranchesByHeadquarter(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
-
-	defer db.Exec("DELETE FROM swift_codes")
 
 	hqCode := "BRANCHTEXXX"
 
@@ -253,8 +250,6 @@ func TestGetSwiftCodesByCountry(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
 
-	defer db.Exec("DELETE FROM swift_codes")
-
 	err := repo.InsertSwiftCodes([]models.SwiftCode{
 		{
 			SwiftCode:     "PLCOUNTRXXX",
@@ -321,8 +316,6 @@ func TestHeadquarterExists(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
 
-	defer db.Exec("DELETE FROM swift_codes")
-
 	hqCode := "EXISTHQQXXX"
 	nonHqCode := "NOTAHQQQ001"
 	missingCode := "DOESNOTEXIS"
@@ -372,8 +365,6 @@ func TestSwiftCodeExists(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
 
-	defer db.Exec("DELETE FROM swift_codes")
-
 	existingCode := "EXISTSCC001"
 	nonExistingCode := "NOSUCHCODEE"
 
@@ -406,8 +397,6 @@ func TestSwiftCodeExists(t *testing.T) {
 func TestIsPlaceholder(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
-
-	defer db.Exec("DELETE FROM swift_codes")
 
 	placeholderCode := "PLACEHOLXXX"
 	normalCode := "NORMALHQXXX"
@@ -456,8 +445,6 @@ func TestIsPlaceholder(t *testing.T) {
 func TestUpdatePlaceholderSwiftCode(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
-
-	defer db.Exec("DELETE FROM swift_codes")
 
 	t.Run("Update existing placeholder with real data", func(t *testing.T) {
 		placeholderCode := "PLACEHOLXXX"
@@ -527,30 +514,32 @@ func TestDeleteSwiftCode(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewRepository(db)
 
-	defer db.Exec("DELETE FROM swift_codes")
+	t.Run("Delete existing SWIFT code", func(t *testing.T) {
+		code := models.SwiftCode{
+			SwiftCode:     "DELTESTTXXX",
+			BankName:      "Delete Test Bank",
+			CountryISO2:   "PL",
+			CountryName:   "POLAND",
+			TownName:      "WARSZAWA",
+			IsHeadquarter: true,
+			Timezone:      "Europe/Warsaw",
+		}
 
-	code := models.SwiftCode{
-		SwiftCode:     "DELTESTTXXX",
-		BankName:      "Delete Test Bank",
-		CountryISO2:   "PL",
-		CountryName:   "POLAND",
-		TownName:      "WARSZAWA",
-		IsHeadquarter: true,
-		Timezone:      "Europe/Warsaw",
-	}
+		err := repo.InsertSwiftCodes([]models.SwiftCode{code})
+		assert.NoError(t, err)
 
-	err := repo.InsertSwiftCodes([]models.SwiftCode{code})
-	assert.NoError(t, err)
+		deleted, err := repo.DeleteSwiftCode("DELTESTTXXX")
+		assert.NoError(t, err)
+		assert.True(t, deleted, "expected to successfully delete the SWIFT code")
 
-	err = repo.DeleteSwiftCode("DELTESTTXXX")
-	assert.NoError(t, err)
-
-	exists, err := repo.SwiftCodeExists("DELTESTTXXX")
-	assert.NoError(t, err)
-	assert.False(t, exists)
+		exists, err := repo.SwiftCodeExists("DELTESTTXXX")
+		assert.NoError(t, err)
+		assert.False(t, exists, "expected the SWIFT code to no longer exist")
+	})
 
 	t.Run("Delete non-existent SWIFT code", func(t *testing.T) {
-		err := repo.DeleteSwiftCode("DOESNOTEXIS")
+		deleted, err := repo.DeleteSwiftCode("DOESNOTEXIS")
 		assert.NoError(t, err)
+		assert.False(t, deleted, "expected deletion to return false for non-existent SWIFT code")
 	})
 }

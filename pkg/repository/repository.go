@@ -16,7 +16,7 @@ type Repository interface {
 	SwiftCodeExists(swiftCode string) (bool, error)
 	IsPlaceholder(swiftCode string) (bool, error)
 	UpdatePlaceholderSwiftCode(code models.SwiftCode) error
-	DeleteSwiftCode(swiftCode string) error
+	DeleteSwiftCode(swiftCode string) (bool, error)
 }
 
 type Repo struct {
@@ -210,7 +210,14 @@ func (r *Repo) UpdatePlaceholderSwiftCode(code models.SwiftCode) error {
 	return err
 }
 
-func (r *Repo) DeleteSwiftCode(swiftCode string) error {
-	_, err := r.db.Exec(`DELETE FROM swift_codes WHERE swift_code = $1`, swiftCode)
-	return err
+func (r *Repo) DeleteSwiftCode(swiftCode string) (bool, error) {
+	result, err := r.db.Exec(`DELETE FROM swift_codes WHERE swift_code = $1`, swiftCode)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected > 0, nil
 }

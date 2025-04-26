@@ -15,6 +15,7 @@ services:
       - test-network
 
   test-runner:
+    container_name: swift-api-test-runner
     build:
       context: .
       dockerfile: Dockerfile.test

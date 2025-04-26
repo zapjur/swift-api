@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
@@ -67,22 +65,22 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 	swiftCode := vars["swift-code"]
 
 	if swiftCode == "" {
-		http.Error(w, "SWIFT code is required", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "SWIFT code is required")
 		return
 	}
 
 	if len(swiftCode) != 11 {
-		http.Error(w, "SWIFT code must be exactly 11 characters", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "SWIFT code must be exactly 11 characters")
 		return
 	}
 
 	code, err := h.Repo.GetSwiftCodeDetails(swiftCode)
 	if err != nil {
-		http.Error(w, "Error retrieving SWIFT code", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Error retrieving SWIFT code")
 		return
 	}
 	if code == nil {
-		http.Error(w, "SWIFT code not found", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, "SWIFT code not found")
 		return
 	}
 
@@ -91,7 +89,7 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 	if code.IsHeadquarter {
 		branches, err := h.Repo.GetBranchesByHeadquarter(swiftCode)
 		if err != nil {
-			http.Error(w, "Error retrieving branches", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "Error retrieving branches")
 			return
 		}
 		var branchResponses []BranchInHQResponse
@@ -116,7 +114,7 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err = json.NewEncoder(w).Encode(resp); err != nil {
-			http.Error(w, "Error encoding response", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "Error encoding response")
 		}
 		return
 	}
@@ -131,7 +129,7 @@ func (h *Handler) GetSwiftCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Error encoding response")
 	}
 }
 
@@ -140,22 +138,22 @@ func (h *Handler) GetSwiftCodesByCountry(w http.ResponseWriter, r *http.Request)
 	iso2 := vars["countryISO2code"]
 
 	if iso2 == "" {
-		http.Error(w, "Country ISO2 code is required", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "Country ISO2 code is required")
 		return
 	}
 
 	if len(iso2) != 2 {
-		http.Error(w, "Country ISO2 code must be exactly 2 characters", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "Country ISO2 code must be exactly 2 characters")
 		return
 	}
 
 	codes, countryName, err := h.Repo.GetSwiftCodesByCountry(iso2)
 	if err != nil {
-		http.Error(w, "Error retrieving SWIFT codes", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Error retrieving SWIFT codes")
 		return
 	}
 	if len(codes) == 0 {
-		http.Error(w, "No SWIFT codes found for this country", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, "No SWIFT codes found for this country")
 		return
 	}
 
@@ -179,7 +177,7 @@ func (h *Handler) GetSwiftCodesByCountry(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Error encoding response")
 		return
 	}
 }
@@ -188,7 +186,7 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 	var req CreateSwiftCodeRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
@@ -196,7 +194,7 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 	req.CountryName = strings.ToUpper(req.CountryName)
 
 	if err := req.Validate(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -213,7 +211,7 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 		hqCode := req.SwiftCode[:8] + "XXX"
 		exists, err := h.Repo.HeadquarterExists(hqCode)
 		if err != nil {
-			http.Error(w, "DB error", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "DB error")
 			return
 		}
 		if !exists {
@@ -230,7 +228,7 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 			}
 			err = h.Repo.InsertSwiftCodes([]models.SwiftCode{placeholder})
 			if err != nil {
-				http.Error(w, "Failed to insert placeholder HQ", http.StatusInternalServerError)
+				writeError(w, http.StatusInternalServerError, "Failed to insert placeholder HQ")
 				return
 			}
 		}
@@ -241,41 +239,34 @@ func (h *Handler) CreateSwiftCode(w http.ResponseWriter, r *http.Request) {
 
 	exists, err := h.Repo.SwiftCodeExists(newCode.SwiftCode)
 	if err != nil {
-		http.Error(w, "DB error", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "DB error")
 		return
 	}
 
 	if exists {
 		isPlaceholder, err := h.Repo.IsPlaceholder(newCode.SwiftCode)
 		if err != nil {
-			http.Error(w, "DB error", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "DB error")
 			return
 		}
 		if isPlaceholder {
 			err = h.Repo.UpdatePlaceholderSwiftCode(newCode)
 			if err != nil {
-				http.Error(w, "Failed to update placeholder SWIFT code", http.StatusInternalServerError)
+				writeError(w, http.StatusInternalServerError, "Failed to update placeholder SWIFT code")
 				return
 			}
 		} else {
-			http.Error(w, "SWIFT code already exists", http.StatusConflict)
+			writeError(w, http.StatusConflict, "SWIFT code already exists")
 			return
 		}
 	} else {
 		if err := h.Repo.InsertSwiftCodes([]models.SwiftCode{newCode}); err != nil {
-			http.Error(w, "Failed to insert SWIFT code", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "Failed to insert SWIFT code")
 			return
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(map[string]string{
-		"message": "SWIFT code added successfully",
-	})
-	if err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-		return
-	}
+	writeSuccess(w, "SWIFT code added successfully")
 }
 
 func (h *Handler) DeleteSwiftCode(w http.ResponseWriter, r *http.Request) {
@@ -283,39 +274,36 @@ func (h *Handler) DeleteSwiftCode(w http.ResponseWriter, r *http.Request) {
 	swiftCode := vars["swift-code"]
 
 	if swiftCode == "" {
-		http.Error(w, "SWIFT code is required", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "SWIFT code is required")
 		return
 	}
 
 	if len(swiftCode) != 11 {
-		http.Error(w, "SWIFT code must be exactly 11 characters", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "SWIFT code must be exactly 11 characters")
 		return
 	}
 
 	if strings.HasSuffix(swiftCode, "XXX") {
 		branches, err := h.Repo.GetBranchesByHeadquarter(swiftCode)
 		if err != nil {
-			http.Error(w, "DB error", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "DB error")
 			return
 		}
 		if len(branches) > 0 {
-			http.Error(w, "Cannot delete headquarter with existing branches", http.StatusConflict)
+			writeError(w, http.StatusConflict, "Cannot delete headquarter with existing branches")
 			return
 		}
 	}
 
-	err := h.Repo.DeleteSwiftCode(swiftCode)
+	deleted, err := h.Repo.DeleteSwiftCode(swiftCode)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "SWIFT code not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Error deleting SWIFT code", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Error deleting SWIFT code")
+		return
+	}
+	if !deleted {
+		writeError(w, http.StatusNotFound, "SWIFT code not found")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(map[string]string{
-		"message": "SWIFT code deleted successfully",
-	})
+	writeSuccess(w, "SWIFT code deleted successfully")
 }

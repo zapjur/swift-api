@@ -32,6 +32,9 @@ It provides a RESTful API to manage SWIFT (BIC) codes for banks and their branch
 
 ## Running the Project
 
+### Prerequisites
+- **Docker** and **docker-compose** installed
+
 ### 1. Clone the repo
 
 ```bash
@@ -42,12 +45,18 @@ cd swift-api
 ### 2. Start with Docker 🐳
 
 ```bash
-docker-compose up --build
+docker-compose up --build -d
 ```
 
 The app will be available at: `http://localhost:8080`
 
 CSV is parsed at startup from: `./assets/swift_codes.csv`
+
+### 3. Stop the app
+
+```bash
+docker-compose down -v
+```
 
 ---
 
@@ -59,7 +68,48 @@ CSV is parsed at startup from: `./assets/swift_codes.csv`
 GET /v1/swift-codes/{swiftCode}
 ```
 
-- Returns HQ with branches or single branch details
+**Response Structure** for headquarter swift code:
+
+```json
+{
+  "address": "",
+  "bankName": "",
+  "countryISO2": "",
+  "countryName": "",
+  "isHeadquarter": true,
+  "swiftCode": "",
+  "branches": [
+    {
+      "address": "",
+      "bankName": "",
+      "countryISO2": "",
+      "isHeadquarter": false,
+      "swiftCode": ""
+    },
+    {
+      "address": "",
+      "bankName": "",
+      "countryISO2": "",
+      "isHeadquarter": false,
+      "swiftCode": ""
+    }
+  ]
+}
+
+```
+
+**Response Structure** for branch swift code:
+
+```json
+{
+  "address": "",
+  "bankName": "",
+  "countryISO2": "",
+  "countryName": "",
+  "isHeadquarter": false,
+  "swiftCode": ""
+}
+```
 
 ---
 
@@ -69,7 +119,31 @@ GET /v1/swift-codes/{swiftCode}
 GET /v1/swift-codes/country/{countryISO2}
 ```
 
-- Returns both HQ and branches
+**Response Structure**:
+
+```json
+{
+  "countryISO2": "",
+  "countryName": "",
+  "swiftCodes": [
+    {
+      "address": "",
+      "bankName": "",
+      "countryISO2": "",
+      "isHeadquarter": true,
+      "swiftCode": ""
+    },
+    {
+      "address": "",
+      "bankName": "",
+      "countryISO2": "",
+      "isHeadquarter": false,
+      "swiftCode": ""
+    }
+  ]
+}
+
+```
 
 ---
 
@@ -90,6 +164,14 @@ POST /v1/swift-codes
 }
 ```
 
+**Response Structure**:
+
+```json
+{
+  "message": ""
+}
+```
+
 ---
 
 ### Delete SWIFT code
@@ -98,16 +180,12 @@ POST /v1/swift-codes
 DELETE /v1/swift-codes/{swiftCode}
 ```
 
-- Prevents HQ deletion if branches exist
+**Response Structure**:
 
----
-
-## Testing
-
-Run unit and integration tests with:
-
-```bash
-go test ./...
+```json
+{
+  "message": ""
+}
 ```
 
 ---
@@ -154,6 +232,51 @@ curl -X DELETE http://localhost:8080/v1/swift-codes/TESTPLHQXXX
 # Delete Branch
 curl -X DELETE http://localhost:8080/v1/swift-codes/TESTPLHQ001
 ```
+
+---
+
+## Testing
+
+This project includes unit and integration tests for parsing, repository operations, validation, and API handlers.
+
+All tests are run inside a Docker container to ensure environment consistency.
+Test results `test-report.txt` and test coverage `coverage.html` are automatically saved locally after each run.
+
+### Run tests
+
+#### Linux/MacOS
+
+```bash
+# Make sure the script is executable
+chmod +x run_tests.sh
+
+# Run tests
+./run_tests.sh
+````
+
+#### Windows
+
+```bash
+bash run_tests.sh
+```
+
+### What happens during the test run?
+
+- It spins up a fresh PostgreSQL database and API container.
+- It builds the project.
+- It runs all Go tests (go test ./... -v) inside the container.
+- It generates:
+    - `test-report.txt` with detailed test results
+    - `coverage.html` with interactive test coverage report
+- It copies these files to your local filesystem.
+- It automatically cleans up all test containers and network.
+
+### After running the tests, you can check the results:
+
+- Test logs here: `./test-report.txt`
+- Test coverage report here: `./coverage.html`
+
+You can open `coverage.html` in your browser to check **which parts of code are covered.**
 
 ---
 
