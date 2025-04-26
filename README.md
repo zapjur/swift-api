@@ -257,7 +257,7 @@ chmod +x run_tests.sh
 #### Windows
 
 ```bash
-run_tests.bat
+.\run_tests.bat
 ```
 
 ### What happens during the test run?
